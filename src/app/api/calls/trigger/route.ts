@@ -5,19 +5,18 @@ import axios from 'axios';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { candidate_id, candidate_name, candidate_phone } = body;
+    const { candidate_id, candidate_name, candidate_phone, user_id } = body;
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    // Validate required fields
+    if (!user_id) {
+      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
     }
 
     // Create call record in DB with user_id
     const { data: callData, error: callError } = await supabase
       .from('calls')
       .insert({
-        user_id: user.id,
+        user_id,
         candidate_id,
         call_status: 'pending',
         started_at: new Date().toISOString(),

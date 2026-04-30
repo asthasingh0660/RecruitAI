@@ -46,24 +46,32 @@ export default function CandidateDetailPage() {
   };
 
   const handleTriggerCall = async () => {
-    if (!candidate) return;
-    setCallingInProgress(true);
+  if (!candidate) return;
+  setCallingInProgress(true);
 
-    try {
-      const response = await axios.post('/api/calls/trigger', {
-        candidate_id: candidate.id,
-        candidate_name: candidate.name,
-        candidate_phone: candidate.phone,
-      });
-
-      alert('Call triggered! AI will call the candidate shortly.');
-      fetchCandidate();
-    } catch (err: any) {
-      alert('Error triggering call: ' + err.message);
-    } finally {
-      setCallingInProgress(false);
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('Not authenticated');
+      return;
     }
-  };
+
+    const response = await axios.post('/api/calls/trigger', {
+      candidate_id: candidate.id,
+      candidate_name: candidate.name,
+      candidate_phone: candidate.phone,
+      user_id: user.id,  // ADD THIS LINE
+    });
+
+    alert('Call triggered! AI will call the candidate shortly.');
+    fetchCandidate();
+  } catch (err: any) {
+    alert('Error triggering call: ' + err.response?.data?.error || err.message);
+  } finally {
+    setCallingInProgress(false);
+  }
+};
 
   if (loading) return <div>Loading...</div>;
   if (!candidate) return <div>Candidate not found</div>;
