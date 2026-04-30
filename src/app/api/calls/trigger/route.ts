@@ -7,10 +7,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { candidate_id, candidate_name, candidate_phone } = body;
 
-    // Create call record in DB
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    // Create call record in DB with user_id
     const { data: callData, error: callError } = await supabase
       .from('calls')
       .insert({
+        user_id: user.id,
         candidate_id,
         call_status: 'pending',
         started_at: new Date().toISOString(),
@@ -54,7 +61,6 @@ export async function POST(request: NextRequest) {
         .from('calls')
         .update({ call_status: 'failed' })
         .eq('id', callData.id);
-
       throw new Error(`Bolna API error: ${bolnaErr.response?.data?.message || bolnaErr.message}`);
     }
   } catch (err: any) {
