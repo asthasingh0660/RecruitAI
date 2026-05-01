@@ -3,88 +3,50 @@ import { supabase } from '@/lib/supabase';
 import { calculateScore } from '@/lib/scoring';
 
 export async function POST(request: NextRequest) {
-  const startTime = Date.now();
-  
   try {
     const body = await request.json();
     
-    // LOG 1: Raw webhook body
     console.log('=== WEBHOOK RECEIVED ===');
-    console.log('Raw body:', JSON.stringify(body, null, 2));
-    console.log('Body keys:', Object.keys(body));
-    console.log('Body type:', typeof body);
-    
-    // LOG 2: Check all possible ID fields
-    console.log('=== CHECKING FOR CALL ID ===');
-    console.log('execution_id:', body.execution_id);
-    console.log('call_id:', body.call_id);
-    console.log('id:', body.id);
-    console.log('request_id:', body.request_id);
-    
-    // LOG 3: Check status and data fields
-    console.log('=== STATUS AND DATA ===');
-    console.log('status:', body.status);
-    console.log('duration:', body.duration);
-    console.log('duration_seconds:', body.duration_seconds);
-    console.log('transcript:', body.transcript?.substring(0, 100) || 'NO TRANSCRIPT');
-    console.log('data field:', body.data ? JSON.stringify(body.data, null, 2) : 'NO DATA FIELD');
-    
-    // Determine which ID field Bolna actually sent
-    const executionId = body.execution_id || body.call_id || body.id;
-    const status = body.status || 'unknown';
-    const duration = body.duration_seconds || body.duration || 0;
+    console.log('Body:', JSON.stringify(body, null, 2));
+
+    const executionId = body.execution_id;
+    const status = body.status;
+    const duration = body.duration_seconds || 0;
     const transcript = body.transcript || '';
 
-    console.log('=== EXTRACTED VALUES ===');
-    console.log('Using ID:', executionId);
-    console.log('Status:', status);
-    console.log('Duration:', duration);
-    console.log('Has transcript:', !!transcript);
-
     if (!executionId) {
-      console.error('ERROR: No execution_id found in webhook body!');
-      console.error('Full body was:', JSON.stringify(body));
-      return NextResponse.json({ 
-        error: 'No execution_id/call_id found',
-        receivedKeys: Object.keys(body)
-      }, { status: 400 });
+      console.error('No execution_id');
+      return NextResponse.json({ error: 'No execution_id' }, { status: 400 });
     }
 
-    // LOG 4: Search for call
-    console.log('=== SEARCHING FOR CALL ===');
-    console.log('Looking for call with bolna_call_id:', executionId);
-
+    // Find the call
     const { data: call, error: callError } = await supabase
       .from('calls')
       .select('*')
       .eq('bolna_call_id', executionId)
       .single();
 
-    if (callError) {
-      console.error('Error querying calls:', callError);
-      // Try alternative search
-      console.log('Trying to find any recent pending call...');
-      const { data: recentCalls } = await supabase
-        .from('calls')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      console.log('Recent calls:', recentCalls);
+    if (callError || !call) {
+      console.error('Call not found');
+      return NextResponse.json({ error: 'Call not found' }, { status: 404 });
     }
 
-    if (!call) {
-      console.error('Call not found for execution_id:', executionId);
-      return NextResponse.json({ 
-        error: 'Call not found',
-        searched_for: executionId
-      }, { status: 404 });
+    // Extract Bolna's JSON from transcript
+    // Bolna sends the final JSON at the end of the transcript
+    let bolnaExtractedData = null;
+    
+    try {
+      // Look for JSON object in transcript (usually at the end)
+      const jsonMatch = transcript.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        bolnaExtractedData = JSON.parse(jsonMatch[0]);
+        console.log('Extracted Bolna data from transcript:', bolnaExtractedData);
+      }
+    } catch (e) {
+      console.log('Could not parse Bolna JSON from transcript');
     }
 
-    console.log('Found call:', call.id);
-    console.log('Call candidate_id:', call.candidate_id);
-
-    // LOG 5: Get candidate
-    console.log('=== FETCHING CANDIDATE ===');
+    // Get candidate
     const { data: candidate, error: candError } = await supabase
       .from('candidates')
       .select('*')
@@ -92,44 +54,93 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (candError || !candidate) {
-      console.error('Candidate error:', candError);
       return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
     }
 
-    console.log('Found candidate:', candidate.name);
-    console.log('Current candidate data:', {
-      experience_years: candidate.experience_years,
-      tech_stack: candidate.tech_stack,
-      notice_period_days: candidate.notice_period_days,
-      expected_salary_lpa: candidate.expected_salary_lpa,
-      relocation_willing: candidate.relocation_willing,
-      communication_score: candidate.communication_score,
-    });
+    // If Bolna extracted data, use it to update candidate
+    if (bolnaExtractedData) {
+      console.log('=== UPDATING CANDIDATE WITH BOLNA DATA ===');
+      
+      const updateData: any = {};
 
-    // LOG 6: Calculate score
-    console.log('=== CALCULATING SCORE ===');
-    const { score, status: qualStatus } = calculateScore(candidate);
-    console.log('Calculated score:', score);
-    console.log('Qualification status:', qualStatus);
+      // Map Bolna fields to candidate fields
+      if (bolnaExtractedData.experience_level) {
+        const years = bolnaExtractedData.experience_level === 'fresher' 
+          ? 0 
+          : parseInt(bolnaExtractedData.experience_level);
+        updateData.experience_years = years;
+      }
 
-    // LOG 7: Update candidate
-    console.log('=== UPDATING CANDIDATE ===');
-    const { error: updateError } = await supabase
-      .from('candidates')
-      .update({
-        qualification_score: score,
-        status: qualStatus,
-      })
-      .eq('id', call.candidate_id);
+      if (bolnaExtractedData.tech_stack) {
+        updateData.tech_stack = bolnaExtractedData.tech_stack;
+      }
 
-    if (updateError) {
-      console.error('Update error:', updateError);
-      throw updateError;
+      if (bolnaExtractedData.notice_period_days !== undefined) {
+        updateData.notice_period_days = bolnaExtractedData.notice_period_days;
+      }
+
+      if (bolnaExtractedData.expected_salary_lpa) {
+        updateData.expected_salary_lpa = bolnaExtractedData.expected_salary_lpa;
+      }
+
+      if (bolnaExtractedData.relocation_willing !== undefined) {
+        updateData.relocation_willing = bolnaExtractedData.relocation_willing;
+      }
+
+      if (bolnaExtractedData.communication_score) {
+        updateData.communication_score = bolnaExtractedData.communication_score;
+      }
+
+      console.log('Update data:', updateData);
+
+      const { error: updateError } = await supabase
+        .from('candidates')
+        .update(updateData)
+        .eq('id', call.candidate_id);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
+
+      // Fetch updated candidate
+      const { data: updatedCandidate } = await supabase
+        .from('candidates')
+        .select('*')
+        .eq('id', call.candidate_id)
+        .single();
+
+      if (updatedCandidate) {
+        // Calculate score with updated data
+        const { score, status: qualStatus } = calculateScore(updatedCandidate);
+
+        console.log('Recalculated score:', score, 'Status:', qualStatus);
+
+        // Update with calculated score
+        await supabase
+          .from('candidates')
+          .update({
+            qualification_score: score,
+            status: qualStatus,
+          })
+          .eq('id', call.candidate_id);
+      }
+    } else {
+      // Fallback: Use existing candidate data
+      console.log('=== NO BOLNA DATA FOUND, USING EXISTING CANDIDATE DATA ===');
+      
+      const { score, status: qualStatus } = calculateScore(candidate);
+
+      await supabase
+        .from('candidates')
+        .update({
+          qualification_score: score,
+          status: qualStatus,
+        })
+        .eq('id', call.candidate_id);
     }
-    console.log('Candidate updated successfully');
 
-    // LOG 8: Update call
-    console.log('=== UPDATING CALL ===');
+    // Update call record
     const { error: callUpdateError } = await supabase
       .from('calls')
       .update({
@@ -140,36 +151,17 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', call.id);
 
-    if (callUpdateError) {
-      console.error('Call update error:', callUpdateError);
-      throw callUpdateError;
-    }
-    console.log('Call updated successfully');
+    if (callUpdateError) throw callUpdateError;
 
-    const processingTime = Date.now() - startTime;
-    console.log('=== WEBHOOK PROCESSED ===');
-    console.log('Processing time:', processingTime, 'ms');
-    console.log('Success: true');
+    console.log('=== WEBHOOK SUCCESS ===');
 
     return NextResponse.json({ 
-      success: true,
-      message: 'Webhook processed successfully',
-      processingTime: processingTime,
-      score: score,
-      status: qualStatus,
+      success: true, 
+      message: 'Webhook processed'
     });
 
   } catch (err: any) {
-    const processingTime = Date.now() - startTime;
-    console.error('=== WEBHOOK ERROR ===');
-    console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    console.error('Processing time:', processingTime, 'ms');
-    
-    return NextResponse.json({ 
-      error: err.message,
-      timestamp: new Date().toISOString(),
-      processingTime: processingTime,
-    }, { status: 400 });
+    console.error('Webhook error:', err.message);
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
