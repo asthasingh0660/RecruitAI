@@ -26,18 +26,17 @@ export async function POST(request: NextRequest) {
 
     if (callError) throw callError;
 
-    // Trigger Bolna API call
+    // Trigger Bolna API call with CORRECT endpoint
     try {
       const bolnaResponse = await axios.post(
-        'https://api.bolna.ai/v1/call',
+        'https://api.bolna.ai/call',  // ✅ FIXED: Correct endpoint (not /v1/call)
         {
           agent_id: process.env.BOLNA_AGENT_ID,
-          phone_number: candidate_phone,
-          webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/calls/webhook`,
-          variables: {
-            candidate_name,
-            call_id: callData.id,
+          recipient: {
+            phone_number: candidate_phone,  // ✅ FIXED: Inside recipient object
+            name: candidate_name,
           },
+          webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/calls/webhook`,
         },
         {
           headers: {
@@ -47,19 +46,23 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      // Update call with bolna_call_id
+      // Update call with bolna execution_id
+      const executionId = bolnaResponse.data.execution_id || bolnaResponse.data.call_id;
       await supabase
         .from('calls')
-        .update({ bolna_call_id: bolnaResponse.data.call_id })
+        .update({ bolna_call_id: executionId })
         .eq('id', callData.id);
 
       return NextResponse.json({ success: true, call_id: callData.id });
     } catch (bolnaErr: any) {
+      console.error('Bolna API Error:', bolnaErr.response?.data || bolnaErr.message);
+      
       // Mark call as failed
       await supabase
         .from('calls')
         .update({ call_status: 'failed' })
         .eq('id', callData.id);
+      
       throw new Error(`Bolna API error: ${bolnaErr.response?.data?.message || bolnaErr.message}`);
     }
   } catch (err: any) {
