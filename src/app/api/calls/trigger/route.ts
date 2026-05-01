@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     try {
       const bolnaPayload = {
         agent_id: process.env.BOLNA_AGENT_ID,
-        phone_number: candidate_phone,
+        recipient_phone_number: candidate_phone,
         // Optional but recommended
         campaign_name: 'RecruitAI Screening',
         language: 'en',
