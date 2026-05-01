@@ -132,7 +132,7 @@ function parseTranscript(transcript: string, bolnaData?: any): {
       experience_years: parseFloat(data.experience_years) || 0,
       tech_stack: Array.isArray(data.tech_stack) 
         ? data.tech_stack 
-        : (typeof data.tech_stack === 'string' ? data.tech_stack.split(',').map(s => s.trim()) : []),
+        : (typeof data.tech_stack === 'string' ? data.tech_stack.split(',').map((s: string) => s.trim()) : []),
       notice_period_days: parseInt(data.notice_period_days) || 0,
       expected_salary_lpa: parseFloat(data.expected_salary_lpa) || 0,
       relocation_willing: data.relocation_willing === 'yes' || data.relocation_willing === true || data.relocation_willing === 'true',
