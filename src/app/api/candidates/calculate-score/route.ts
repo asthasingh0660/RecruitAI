@@ -178,19 +178,55 @@ function extractFromTranscript(transcript: string): {
     communication_score: null as number | null,
   };
 
-  // Extract tech stack (comprehensive list)
+  // Extract tech stack - FIXED: Properly escape special characters like +
   const allTechs = [
-    'React', 'Vue', 'Angular', 'Next.js', 'Svelte',
-    'Node.js', 'Express', 'NestJS', 'Django', 'Flask', 'FastAPI', 'Spring',
-    'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Firebase', 'Oracle',
-    'Python', 'JavaScript', 'TypeScript', 'Java', 'C++', 'C#', 'Go', 'Rust',
-    'HTML', 'CSS', 'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes',
-    'Prompt Engineering', 'AI Integration', 'LLM', 'RAG', 'Vector Database'
+    { name: 'React', pattern: 'React' },
+    { name: 'Vue', pattern: 'Vue' },
+    { name: 'Angular', pattern: 'Angular' },
+    { name: 'Next.js', pattern: 'Next\\.js' },
+    { name: 'Svelte', pattern: 'Svelte' },
+    { name: 'Node.js', pattern: 'Node\\.js' },
+    { name: 'Express', pattern: 'Express' },
+    { name: 'NestJS', pattern: 'NestJS' },
+    { name: 'Django', pattern: 'Django' },
+    { name: 'Flask', pattern: 'Flask' },
+    { name: 'FastAPI', pattern: 'FastAPI' },
+    { name: 'Spring', pattern: 'Spring' },
+    { name: 'PostgreSQL', pattern: 'PostgreSQL' },
+    { name: 'MySQL', pattern: 'MySQL' },
+    { name: 'MongoDB', pattern: 'MongoDB' },
+    { name: 'Redis', pattern: 'Redis' },
+    { name: 'Firebase', pattern: 'Firebase' },
+    { name: 'Oracle', pattern: 'Oracle' },
+    { name: 'Python', pattern: 'Python' },
+    { name: 'JavaScript', pattern: 'JavaScript' },
+    { name: 'TypeScript', pattern: 'TypeScript' },
+    { name: 'Java', pattern: 'Java' },
+    { name: 'C++', pattern: 'C\\+\\+' },  // ✅ FIXED: Escape + characters
+    { name: 'C#', pattern: 'C#' },
+    { name: 'Go', pattern: '\\bGo\\b' },
+    { name: 'Rust', pattern: 'Rust' },
+    { name: 'HTML', pattern: 'HTML' },
+    { name: 'CSS', pattern: 'CSS' },
+    { name: 'AWS', pattern: 'AWS' },
+    { name: 'Azure', pattern: 'Azure' },
+    { name: 'GCP', pattern: 'GCP' },
+    { name: 'Docker', pattern: 'Docker' },
+    { name: 'Kubernetes', pattern: 'Kubernetes' },
+    { name: 'Prompt Engineering', pattern: 'Prompt Engineering' },
+    { name: 'AI Integration', pattern: 'AI Integration' },
+    { name: 'LLM', pattern: 'LLM' },
+    { name: 'RAG', pattern: 'RAG' },
+    { name: 'Vector Database', pattern: 'Vector Database' },
   ];
 
   for (const tech of allTechs) {
-    if (new RegExp(`\\b${tech}\\b`, 'i').test(transcript)) {
-      result.tech_stack.push(tech);
+    try {
+      if (new RegExp(`\\b${tech.pattern}\\b`, 'i').test(transcript)) {
+        result.tech_stack.push(tech.name);
+      }
+    } catch (err) {
+      console.log(`Error with regex for ${tech.name}:`, err);
     }
   }
 
@@ -203,7 +239,6 @@ function extractFromTranscript(transcript: string): {
   }
 
   // Extract notice period - FIXED
-  // Handles: "zero", "0", or numbers
   const noticeMatch = transcript.match(/notice\s*period\s*(?:is\s+)?(zero|0|\d+)\s*(?:days?)?/i);
   if (noticeMatch) {
     const value = noticeMatch[1].toLowerCase();

@@ -107,7 +107,7 @@ export default function CandidateDetailPage() {
         candidate_id: candidate.id,
       });
       
-      alert(`Score calculated! Score: ${response.data.score}/100, Status: ${response.data.status}`);
+      alert(`Score calculated! Score: ${response.data.score.toFixed(1)}/100, Status: ${response.data.status}`);
       fetchCandidate();
     } catch (err: any) {
       alert('Error calculating score: ' + (err.response?.data?.error || err.message));
@@ -116,20 +116,20 @@ export default function CandidateDetailPage() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
-  if (!candidate) return <div className="p-8">Candidate not found</div>;
+  if (loading) return <div className="p-8 text-gray-900">Loading...</div>;
+  if (!candidate) return <div className="p-8 text-gray-900">Candidate not found</div>;
 
   return (
-    <div className="p-8 max-w-4xl">
-      <Link href="/dashboard/candidates" className="text-blue-500 hover:underline mb-6 inline-block">
+    <div className="p-8 max-w-4xl bg-white">
+      <Link href="/dashboard/candidates" className="text-blue-600 hover:text-blue-700 hover:underline mb-6 inline-block font-semibold">
         ← Back
       </Link>
 
-      <div className="bg-white rounded-lg shadow p-8">
+      <div className="bg-white rounded-lg shadow-md p-8 border border-gray-200">
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">{candidate.name}</h1>
-            <p className="text-gray-600">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">{candidate.name}</h1>
+            <p className="text-gray-700 text-lg">
               {candidate.phone} | {candidate.location || 'N/A'}
             </p>
           </div>
@@ -137,53 +137,53 @@ export default function CandidateDetailPage() {
             <button
               onClick={handleTriggerCall}
               disabled={callingInProgress}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition"
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition duration-200"
             >
-              {callingInProgress ? 'Calling...' : '📞 Trigger AI Call'}
+              {callingInProgress ? '📞 Calling...' : '📞 Trigger AI Call'}
             </button>
             <button
               onClick={handleCalculateScore}
               disabled={calculatingScore}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition"
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition duration-200"
             >
-              {calculatingScore ? 'Calculating...' : '🧮 Calculate Score'}
+              {calculatingScore ? '🧮 Calculating...' : '🧮 Calculate Score'}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-8 mb-8">
-          <div>
-            <h3 className="text-gray-500 text-sm uppercase mb-1">Experience</h3>
-            <p className="text-2xl font-semibold">{candidate.experience_years} years</p>
+          <div className="border-b pb-4">
+            <h3 className="text-gray-600 text-sm uppercase font-semibold mb-2">Experience</h3>
+            <p className="text-2xl font-bold text-gray-900">{candidate.experience_years} years</p>
           </div>
-          <div>
-            <h3 className="text-gray-500 text-sm uppercase mb-1">Tech Stack</h3>
+          <div className="border-b pb-4">
+            <h3 className="text-gray-600 text-sm uppercase font-semibold mb-2">Tech Stack</h3>
             <div className="flex flex-wrap gap-2">
               {candidate.tech_stack?.map((tech) => (
-                <span key={tech} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                <span key={tech} className="bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-sm font-medium">
                   {tech}
                 </span>
               ))}
             </div>
           </div>
-          <div>
-            <h3 className="text-gray-500 text-sm uppercase mb-1">Notice Period</h3>
-            <p className="text-2xl font-semibold">{candidate.notice_period_days} days</p>
+          <div className="border-b pb-4">
+            <h3 className="text-gray-600 text-sm uppercase font-semibold mb-2">Notice Period</h3>
+            <p className="text-2xl font-bold text-gray-900">{candidate.notice_period_days} days</p>
           </div>
-          <div>
-            <h3 className="text-gray-500 text-sm uppercase mb-1">Expected Salary</h3>
-            <p className="text-2xl font-semibold">₹{candidate.expected_salary_lpa} LPA</p>
+          <div className="border-b pb-4">
+            <h3 className="text-gray-600 text-sm uppercase font-semibold mb-2">Expected Salary</h3>
+            <p className="text-2xl font-bold text-gray-900">₹{candidate.expected_salary_lpa} LPA</p>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 mb-8 border border-blue-200">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 mb-8 border border-blue-300">
           <div className="grid grid-cols-2 gap-8">
             <div>
-              <h3 className="text-gray-500 text-sm uppercase mb-2">Qualification Score</h3>
-              <p className="text-5xl font-bold text-blue-600">{candidate.qualification_score.toFixed(1)}/100</p>
+              <h3 className="text-gray-700 text-sm uppercase font-semibold mb-2">Qualification Score</h3>
+              <p className="text-5xl font-bold text-blue-700">{candidate.qualification_score.toFixed(1)}/100</p>
             </div>
             <div>
-              <h3 className="text-gray-500 text-sm uppercase mb-2">Status</h3>
+              <h3 className="text-gray-700 text-sm uppercase font-semibold mb-2">Status</h3>
               <p className={`text-3xl font-bold ${
                 candidate.status === 'Qualified' ? 'text-green-600' :
                 candidate.status === 'Maybe' ? 'text-yellow-600' :
@@ -193,42 +193,42 @@ export default function CandidateDetailPage() {
               </p>
             </div>
           </div>
-          <div className="mt-6 pt-6 border-t border-blue-200">
-            <p className="text-sm text-gray-600">
-              <strong>Relocation Willing:</strong> {candidate.relocation_willing ? 'Yes' : 'No'} | 
-              <strong className="ml-4">Communication Score:</strong> {candidate.communication_score}/10
+          <div className="mt-6 pt-6 border-t border-blue-300">
+            <p className="text-sm text-gray-800 font-medium">
+              <strong className="text-gray-900">Relocation Willing:</strong> <span className="text-gray-800">{candidate.relocation_willing ? 'Yes' : 'No'}</span> | 
+              <strong className="text-gray-900 ml-4">Communication Score:</strong> <span className="text-gray-800">{candidate.communication_score}/10</span>
             </p>
           </div>
         </div>
 
         {calls.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-6">Call History</h2>
+          <div className="bg-white border border-gray-300 rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Call History</h2>
             {calls.map((call) => (
-              <div key={call.id} className="border-b pb-6 mb-6 last:border-b-0 last:pb-0 last:mb-0">
+              <div key={call.id} className="border-b border-gray-200 pb-6 mb-6 last:border-b-0 last:pb-0 last:mb-0">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600 font-medium">
                       {new Date(call.started_at).toLocaleString()}
                     </p>
-                    <p className="text-lg font-semibold">
+                    <p className="text-lg font-semibold text-gray-900">
                       Status: <span className={`${
-                        call.call_status === 'completed' ? 'text-green-600' : 'text-yellow-600'
+                        call.call_status === 'completed' ? 'text-green-600 font-bold' : 'text-yellow-600 font-bold'
                       }`}>
                         {call.call_status}
                       </span>
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Duration: {call.duration_seconds}s</p>
+                    <p className="text-sm text-gray-600 font-medium">Duration: {call.duration_seconds}s</p>
                   </div>
                 </div>
                 {call.transcript && (
-                  <details className="text-sm text-gray-700 mt-3">
-                    <summary className="cursor-pointer font-semibold hover:text-gray-900">
+                  <details className="text-sm text-gray-800 mt-3">
+                    <summary className="cursor-pointer font-semibold text-gray-900 hover:text-gray-700 transition">
                       📄 View Transcript
                     </summary>
-                    <div className="mt-3 p-3 bg-gray-50 rounded border border-gray-200 max-h-96 overflow-y-auto whitespace-pre-wrap text-xs">
+                    <div className="mt-3 p-4 bg-gray-50 rounded border border-gray-300 max-h-96 overflow-y-auto whitespace-pre-wrap text-xs text-gray-800 font-mono">
                       {call.transcript}
                     </div>
                   </details>
