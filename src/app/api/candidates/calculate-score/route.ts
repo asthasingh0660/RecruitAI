@@ -148,9 +148,11 @@ function extractFromTranscript(transcript: string): {
 } {
   // First try to find JSON in transcript (Bolna sends it at end)
   try {
-    const jsonMatch = transcript.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
+    // Find LAST JSON object (not first)
+    const jsonMatches = transcript.match(/\{[^{}]*"[^"]*"[^{}]*\}/g);
+    if (jsonMatches && jsonMatches.length > 0) {
+      const lastJson = jsonMatches[jsonMatches.length - 1];
+      const data = JSON.parse(lastJson);
       console.log('Found Bolna JSON data:', data);
       
       return {
@@ -163,7 +165,7 @@ function extractFromTranscript(transcript: string): {
       };
     }
   } catch (e) {
-    console.log('Could not parse JSON from transcript, extracting manually');
+    console.log('Could not parse Bolna JSON from transcript, extracting manually');
   }
 
   // Manual extraction from text
@@ -200,33 +202,52 @@ function extractFromTranscript(transcript: string): {
     result.experience_years = 0;
   }
 
-  // Extract notice period
-  const noticeMatch = transcript.match(/notice\s*period\s*(?:is\s*)?(?:zero|0|(\d+))\s*(?:day)?/i);
+  // Extract notice period - FIXED
+  // Handles: "zero", "0", or numbers
+  const noticeMatch = transcript.match(/notice\s*period\s*(?:is\s+)?(zero|0|\d+)\s*(?:days?)?/i);
   if (noticeMatch) {
-    result.notice_period_days = noticeMatch[1] ? parseInt(noticeMatch[1]) : 0;
+    const value = noticeMatch[1].toLowerCase();
+    result.notice_period_days = (value === 'zero') ? 0 : parseInt(value);
   }
 
-  // Extract salary
-  const salaryMatch = transcript.match(/(\d+(?:\.\d+)?)\s*(?:lpa|lakhs?|lakh)/i);
-  if (salaryMatch) {
-    result.expected_salary_lpa = parseFloat(salaryMatch[1]);
+  // Extract salary - FIXED to handle words like "six to seven"
+  const salaryWords: { [key: string]: number } = {
+    'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+  };
+
+  // Try matching "six to seven" format
+  const salaryWordsMatch = transcript.match(
+    /(zero|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:to|or|-)\s*(zero|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:lpa|lakhs?)/i
+  );
+  
+  if (salaryWordsMatch) {
+    const first = salaryWords[salaryWordsMatch[1].toLowerCase()];
+    const second = salaryWords[salaryWordsMatch[2].toLowerCase()];
+    result.expected_salary_lpa = (first + second) / 2;
+  } else {
+    // Try matching numeric format like "6.5 LPA"
+    const salaryNumMatch = transcript.match(/(\d+(?:\.\d+)?)\s*(?:lpa|lakhs?)/i);
+    if (salaryNumMatch) {
+      result.expected_salary_lpa = parseFloat(salaryNumMatch[1]);
+    }
   }
 
-  // Extract relocation
-  if (/open\s*to|willing|yes|relocate|relocation/i.test(transcript)) {
+  // Extract relocation - FIXED with better context
+  if (/(?:willing|open|yes)\s+to\s+relocation|relocation\s+(?:willing|open|yes)|open\s+to\s+any\s+relocation/i.test(transcript)) {
     result.relocation_willing = true;
-  } else if (/no|not\s*willing|can't\s*relocate/i.test(transcript)) {
+  } else if (/(?:no|not|can't|cannot)\s+(?:willing|relocate)|no\s+relocation/i.test(transcript)) {
     result.relocation_willing = false;
   }
 
-  // Communication score (1-10 scale or extract from confidence)
-  const commMatch = transcript.match(/(?:confidence|rate.*skill|coding\s*skills?)[:\s]*(\d+)/i);
+  // Communication score (1-10 scale)
+  const commMatch = transcript.match(/(?:rate|confidence|rate.*skill|coding\s*(?:confidence|skill))[:\s]*(\d+)/i);
   if (commMatch) {
     result.communication_score = parseInt(commMatch[1]);
   } else {
-    // Default: count number of complete sentences, max 10
+    // Default: estimate from response quality (count sentences)
     const sentences = transcript.match(/[.!?]+/g);
-    result.communication_score = Math.min(10, Math.max(5, (sentences?.length || 0) / 20));
+    result.communication_score = Math.min(10, Math.max(5, Math.floor((sentences?.length || 0) / 5)));
   }
 
   console.log('Manually extracted data:', result);
