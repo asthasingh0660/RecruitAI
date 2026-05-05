@@ -207,7 +207,7 @@ MIT - Open source project
 
 ## 👤 Author
 
-Your Name
+Astha Singh
 
 ---
 
