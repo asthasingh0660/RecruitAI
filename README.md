@@ -211,6 +211,6 @@ Astha Singh
 
 ---
 
-**Live Demo:** https://your-vercel-app.vercel.app
+**Live Demo:** https://recruit-ai-ddd2-psi.vercel.app
 
 **GitHub:** https://github.com/asthasingh0660/RecruitAI
